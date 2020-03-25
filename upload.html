@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+</head>
+
+<body>
+    <style>
+        #dropContainer {
+            border: 1px solid black;
+            height: 100px;
+            width: 50%;
+            padding: 1em;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        #load {
+            display: none;
+        }
+    </style>
+
+    <h1>Upload Page</h1>
+    <p>Note: This page only works for modern browsers, which IE is not included.</p>
+    <p>I know it is ugly, but no time for styling! I still have to watch anime!</p>
+    <p>
+        <a href="/uploaded">List of uploaded files</a>. <br />
+        Note that all files are treated as html, with a random ID. <br />
+        Actually the ID is not random, it is the server starting timestamp + counter. <br />
+        Currently I can only write the upload function, I have to wait for the actual HTML to write the parser.
+    </p>
+    <div id="dropContainer">Drop the file here.</div>
+    <input type="file" id="fileInput" /><br />
+    <button id="load" onclick="load()">Now Loading!</button>
+
+    <script>
+        // References:
+        // https://stackoverflow.com/questions/8006715/drag-drop-files-into-standard-html-file-input
+        // https://stackoverflow.com/questions/31746837/reading-uploaded-text-file-contents-in-html
+        const dropContainer = document.getElementById('dropContainer')
+        const fileInput = document.getElementById('fileInput')
+
+        function load() {
+            let fileReader = new FileReader()
+            fileReader.onload = evt => {
+                let xhttp = new XMLHttpRequest()
+                xhttp.onreadystatechange = function () {
+                    if (this.readyState == 4) {
+                        if (this.status == 200)
+                            dropContainer.textContent = 'Finished!'
+                        else
+                            dropContainer.textContent =
+                                `Error Occurred! Status: ${this.status}\nPlease ask in the group and try again!`
+                    }
+                }
+                xhttp.ontimeout = () => dropContainer.textContent = 'Error! Connection Timeout!'
+                xhttp.open('POST', 'upload', true)
+                xhttp.setRequestHeader('Content-Type', 'application/json;charset=UTF-8')
+                xhttp.send(JSON.stringify({ content: evt.target.result }))
+            }
+            fileReader.readAsText(fileInput.files[0])
+        }
+
+        dropContainer.ondragover = dropContainer.ondragenter = evt => evt.preventDefault()
+        dropContainer.ondrop = evt => {
+            fileInput.files = evt.dataTransfer.files
+            dropContainer.textContent = 'Now Loading!!!'
+            load()
+            evt.preventDefault()
+        }
+
+    </script>
+</body>
+
+</html>
