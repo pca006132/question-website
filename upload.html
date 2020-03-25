@@ -52,18 +52,21 @@
     <template>
         <li>
             <p></p>
-            <input type="text" onkeypress="keypress(event)">
+            <input type="text" onkeypress="sendAns(event)">
         </li>
     </template>
     <h2>Questions</h2>
     <p>Add Question:</p>
-    <input type="text" onkeypress="addQuestion(event)">
+    <input type="text" onkeypress="sendQuestion(event)">
     <ol id="questions"></ol>
 
     <script>
         const caption = document.getElementById('caption')
         const dropContainer = document.getElementById('dropContainer')
         const disconnected = document.getElementById('disconnect')
+        const questionNode = document.getElementsByTagName('template')[0].
+            content.querySelector('li')
+        const qusetionList = document.getElementById('questions')
         let ws = new WebSocket('ws://localhost:4000')
         let timeout
         let timer = setInterval(() => {
@@ -74,22 +77,56 @@
             ws.send(JSON.stringify({ id: 'ping' }))
         }, 3000)
 
+        function sendQuestion(evt) {
+            // I know this is deprecated, but this is the simplest
+            if (evt.keyCode != 13)
+                return
+            ws.send(JSON.stringify({ id: 'add', content: event.target.value }))
+        }
+
+        let questions = {}
+
+        function addQuestion(index, list) {
+            let node = document.importNode(questionNode, true)
+            node.querySelector('p').textContent = list[0]
+            let ans = node.querySelector('input')
+            ans.dataset.index = index
+            if (list.length > 1)
+                ans.value = list[list.length - 1]
+            questions[index] = ans
+            qusetionList.appendChild(node)
+        }
+
+        function changeAns(index, value) {
+            questions[index].value = value
+        }
+
+        function sendAns(evt) {
+            if (evt.keyCode != 13)
+                return
+            const index = evt.target.dataset.index
+            ws.send(JSON.stringify({ id: 'ans', index: index, content: evt.target.value }))
+        }
+
         ws.onmessage = msg => {
             const data = JSON.parse(msg.data)
+            if (data.id != 'pong')
+                console.log(data)
             switch (data.id) {
                 case 'pong':
                     clearTimeout(timeout)
                     break
-                default:
-                    console.log(data)
+                case 'init':
+                    for (let i = 0; i < data.content.length; i++)
+                        addQuestion(i, data.content[i])
+                    break
+                case 'add':
+                    addQuestion(parseInt(data.index), [data.content])
+                    break
+                case 'ans':
+                    changeAns(parseInt(data.index), data.content)
                     break
             }
-        }
-
-        function addQuestion(evt) {
-            // I know this is deprecated, but this is the simplest
-            if (evt.keyCode == 13)
-                ws.send(JSON.stringify({ id: 'add', content: event.target.value}))
         }
 
         function load(file) {

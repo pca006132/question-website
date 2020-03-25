@@ -93,8 +93,7 @@ const addQuestion = q => {
         if (timer == null)
             timer = setTimeout(savedb, 10000)
         done()
-        // index is for verifying in case of concurrent addition
-        console.log(`Added ${q}`)
+        // Ordering may be messed up due to concurrency in the clients
         broadcast({
             id: 'add',
             index: index,
@@ -132,7 +131,7 @@ wss.on('connection', (ws, req) => {
                     addQuestion(data.content)
                     break
                 case 'ans':
-                    addAns(data.index, data.content)
+                    addAns(parseInt(data.index), data.content)
                     break
             }
         } catch (e) {
