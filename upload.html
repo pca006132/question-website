@@ -7,19 +7,27 @@
 
 <body>
     <style>
-        #dropContainer {
-            border: 1px solid black;
-            height: 100px;
-            width: 50%;
+        #disconnect {
+            position: fixed;
+            background-color: red;
+            color: white;
             padding: 1em;
-        }
-
-        #fileInput {
-            display: none;
+            font-weight: bold;
+            height: 4em;
+            width: 100%;
+            top: 0px;
+            left: 0px;
         }
 
         #load {
             display: none;
+        }
+
+        #preload {
+            width: 0px;
+            height: 0px;
+            display: inline;
+            background-image: url('resources/error.jpg');
         }
     </style>
 
@@ -32,28 +40,75 @@
         Actually the ID is not random, it is the server starting timestamp + counter. <br />
         Currently I can only write the upload function, I have to wait for the actual HTML to write the parser.
     </p>
-    <div id="dropContainer">Drop the file here.</div>
-    <input type="file" id="fileInput" /><br />
-    <button id="load" onclick="load()">Now Loading!</button>
+    <p id="caption">
+        Drop the file below:
+    </p>
+    <img src="resources/waiting.jpg" id="dropContainer"></div>
+    <img src="resources/finished.jpg" style="display: none;" id="finished">
+    <img src="resources/error.jpg" style="display: none;" id="error">
+    <div id="preload"></div><br />
+    <div id="disconnect" style="display: none; ">WebSocket Disconnected! Your recent changes are probably lost!</div>
+
+    <template>
+        <li>
+            <p></p>
+            <input type="text" onkeypress="keypress(event)">
+        </li>
+    </template>
+    <h2>Questions</h2>
+    <p>Add Question:</p>
+    <input type="text" onkeypress="addQuestion(event)">
+    <ol id="questions"></ol>
 
     <script>
-        // References:
-        // https://stackoverflow.com/questions/8006715/drag-drop-files-into-standard-html-file-input
-        // https://stackoverflow.com/questions/31746837/reading-uploaded-text-file-contents-in-html
+        const caption = document.getElementById('caption')
         const dropContainer = document.getElementById('dropContainer')
-        const fileInput = document.getElementById('fileInput')
+        const disconnected = document.getElementById('disconnect')
+        let ws = new WebSocket('ws://localhost:4000')
+        let timeout
+        let timer = setInterval(() => {
+            timeout = setTimeout(() => {
+                disconnected.style.display = 'block'
+                clearInterval(timer)
+            }, 3000)
+            ws.send(JSON.stringify({ id: 'ping' }))
+        }, 3000)
 
-        function load() {
+        ws.onmessage = msg => {
+            const data = JSON.parse(msg.data)
+            switch (data.id) {
+                case 'pong':
+                    clearTimeout(timeout)
+                    break
+                default:
+                    console.log(data)
+                    break
+            }
+        }
+
+        function addQuestion(evt) {
+            // I know this is deprecated, but this is the simplest
+            if (evt.keyCode == 13)
+                ws.send(JSON.stringify({ id: 'add', content: event.target.value}))
+        }
+
+        function load(file) {
             let fileReader = new FileReader()
             fileReader.onload = evt => {
                 let xhttp = new XMLHttpRequest()
                 xhttp.onreadystatechange = function () {
                     if (this.readyState == 4) {
-                        if (this.status == 200)
-                            dropContainer.textContent = 'Finished!'
-                        else
-                            dropContainer.textContent =
+                        if (this.status == 200) {
+                            caption.textContent = 'Finished!'
+                            dropContainer.style.display = 'none'
+                            document.getElementById('finished').style.display = 'block'
+                        }
+                        else {
+                            caption.textContent =
                                 `Error Occurred! Status: ${this.status}\nPlease ask in the group and try again!`
+                            dropContainer.style.display = 'none'
+                            document.getElementById('error').style.display = 'block'
+                        }
                     }
                 }
                 xhttp.ontimeout = () => dropContainer.textContent = 'Error! Connection Timeout!'
@@ -61,14 +116,13 @@
                 xhttp.setRequestHeader('Content-Type', 'application/json;charset=UTF-8')
                 xhttp.send(JSON.stringify({ content: evt.target.result }))
             }
-            fileReader.readAsText(fileInput.files[0])
+            fileReader.readAsText(file)
         }
 
         dropContainer.ondragover = dropContainer.ondragenter = evt => evt.preventDefault()
         dropContainer.ondrop = evt => {
-            fileInput.files = evt.dataTransfer.files
             dropContainer.textContent = 'Now Loading!!!'
-            load()
+            load(evt.dataTransfer.files[0])
             evt.preventDefault()
         }
 
