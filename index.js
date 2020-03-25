@@ -4,7 +4,7 @@ const serveIndex = require('serve-index')
 const AsyncLock = require('async-lock')
 const fs = require('fs')
 const app = express()
-const port = 3000
+const port = 80
 const wsPort = 4000
 
 // Use the start time as the offset, add counter to this offset.
@@ -128,7 +128,7 @@ wss.on('connection', (ws, req) => {
                     this.send(JSON.stringify({ 'id': 'pong' }))
                     break
                 case 'add':
-                    addQuestion(data.content)
+                    addQuestion(data.content.trim())
                     break
                 case 'ans':
                     addAns(parseInt(data.index), data.content)

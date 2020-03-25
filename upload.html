@@ -29,6 +29,14 @@
             display: inline;
             background-image: url('resources/error.jpg');
         }
+
+        .ans {
+            border: 1px solid lime;
+        }
+
+        .ans.dirty {
+            border: 1px solid yellow;
+        }
     </style>
 
     <h1>Upload Page</h1>
@@ -51,14 +59,24 @@
 
     <template>
         <li>
-            <p></p>
-            <input type="text" onkeypress="sendAns(event)">
+            <p onclick="showAns(event)"></p>
+            <input class="ans" type="text" onkeydown="sendAns(event)">
         </li>
     </template>
     <h2>Questions</h2>
+    <p> 
+        Green box means the value is updated, yellow means that the value is not updated. <br />
+        User has to press ENTER to submit the updated answer/question. Questions once submitted cannot be deleted. <br />
+        (as the final system would automatically parse the questions, this function is for debugging only) <br /><br />
+        Note that the actual question index may be different from the list index due to concurrency problem. <br />
+        The question number shown is the actual index in the server. <br /><br />
+        The server has a record of all previous answers. <br />
+        To get the answer list for a certain question, click the text and the list would be shown in the console. (F12 and open the JavaScript console)<br />
+        I have no time to implement a good GUI so that's it. <br />
+    </p>
     <p>Add Question:</p>
-    <input type="text" onkeypress="sendQuestion(event)">
-    <ol id="questions"></ol>
+    <input type="text" onkeydown="sendQuestion(event)">
+    <ul id="questions"></ul>
 
     <script>
         const caption = document.getElementById('caption')
@@ -84,24 +102,34 @@
             ws.send(JSON.stringify({ id: 'add', content: event.target.value }))
         }
 
+        let questionsTextboxes = {}
         let questions = {}
 
         function addQuestion(index, list) {
             let node = document.importNode(questionNode, true)
-            node.querySelector('p').textContent = list[0]
+            let p = node.querySelector('p')
+            p.textContent = `Q${index}: ${list[0]}`
             let ans = node.querySelector('input')
-            ans.dataset.index = index
+            p.dataset.index = ans.dataset.index = index
             if (list.length > 1)
                 ans.value = list[list.length - 1]
-            questions[index] = ans
+            questionsTextboxes[index] = ans
+            questions[index] = list
             qusetionList.appendChild(node)
         }
 
+        function showAns(evt) {
+            console.log(questions[evt.target.dataset.index].slice(1))
+        }
+
         function changeAns(index, value) {
-            questions[index].value = value
+            questionsTextboxes[index].value = value
+            questionsTextboxes[index].classList.remove('dirty')
+            questions[index].push(value)
         }
 
         function sendAns(evt) {
+            evt.target.classList.add('dirty')
             if (evt.keyCode != 13)
                 return
             const index = evt.target.dataset.index
